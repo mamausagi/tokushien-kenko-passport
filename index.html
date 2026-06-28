@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<title>健康パスポート</title>
+
+<!-- ===== PWA設定（ホーム画面アイコン対応） ===== -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#3b82c4">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="健康パスポート">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<style>
+:root{
+  --bg:#f3f6fb; --card:#fff; --ink:#1f2d3d; --sub:#6b7a8d; --line:#e2e8f0;
+  --accent:#3b82c4; --accent-soft:#e8f1fa; --ok:#27ae8f; --warn:#e8a838; --bad:#e3674f;
+  --radius:16px; --shadow:0 2px 10px rgba(31,45,61,.07);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  font-family:-apple-system,"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;
+  background:var(--bg); color:var(--ink); line-height:1.6;
+  padding-bottom:84px;
+}
+h2{font-size:18px;margin:0 0 10px;display:flex;align-items:center;gap:8px}
+h3{font-size:15px;margin:18px 0 8px;color:var(--accent)}
+.muted{color:var(--sub);font-size:13px}
+.app{max-width:680px;margin:0 auto;padding:14px}
+
+/* header */
+.appbar{background:linear-gradient(135deg,#4a90c7,#3b82c4);color:#fff;padding:14px 16px;
+  display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:30;
+  box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.appbar .who{flex:1;min-width:0}
+.appbar .who .nm{font-weight:700;font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.appbar .who .sub{font-size:12px;opacity:.85}
+.appbar button{background:rgba(255,255,255,.18);border:0;color:#fff;border-radius:10px;
+  padding:8px 10px;font-size:13px;font-weight:600}
+
+/* cards */
+.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;margin:12px 0}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+label.fld{display:block;margin:10px 0}
+label.fld .lb{font-size:12px;color:var(--sub);font-weight:600;margin-bottom:4px;display:block}
+input[type=text],input[type=tel],input[type=date],textarea,select{
+  width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:15px;
+  font-family:inherit;background:#fbfdff;color:var(--ink)}
+textarea{min-height:72px;resize:vertical}
+.half{flex:1;min-width:140px}
+
+/* tabs */
+.tabbar{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);
+  display:flex;z-index:40;padding-bottom:env(safe-area-inset-bottom)}
+.tabbar button{flex:1;border:0;background:none;padding:8px 2px 10px;font-size:10.5px;color:var(--sub);
+  display:flex;flex-direction:column;align-items:center;gap:3px;font-weight:600}
+.tabbar button .ic{font-size:21px}
+.tabbar button.on{color:var(--accent)}
+.tabbar button.on .ic{transform:translateY(-1px)}
+
+.page{display:none}
+.page.on{display:block;animation:fade .2s}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1}}
+
+/* one-tap record */
+.recgrp{margin:14px 0}
+.recgrp .q{font-weight:700;font-size:15px;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(64px,1fr));gap:8px}
+.opt{border:2px solid var(--line);background:#fff;border-radius:14px;padding:10px 4px;text-align:center;
+  font-size:12px;font-weight:600;color:var(--sub);cursor:pointer;transition:.12s}
+.opt .em{font-size:26px;display:block;line-height:1.2}
+.opt.sel{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.opt.sel.g{border-color:var(--ok);background:#e7f7f1;color:var(--ok)}
+.opt.sel.y{border-color:var(--warn);background:#fdf4e3;color:#b07e1e}
+.opt.sel.r{border-color:var(--bad);background:#fdeceA;background:#fceae6;color:var(--bad)}
+.savednote{font-size:12px;color:var(--ok);font-weight:700;height:18px;margin-top:4px}
+
+/* history */
+.histwrap{overflow-x:auto}
+.histtable{border-collapse:collapse;width:100%;font-size:13px;min-width:420px}
+.histtable th,.histtable td{border:1px solid var(--line);padding:6px 4px;text-align:center}
+.histtable th{background:var(--accent-soft);color:var(--accent);font-size:11px;position:sticky;left:0}
+.histtable td.d{font-weight:700;white-space:nowrap;background:#fafcff}
+.dot{display:inline-block;font-size:18px}
+
+/* checklist */
+.chk{display:flex;align-items:flex-start;gap:10px;padding:9px 4px;border-bottom:1px solid var(--line)}
+.chk:last-child{border-bottom:0}
+.chk input{width:22px;height:22px;margin:2px 0 0;flex:none;accent-color:var(--accent)}
+.chk span{font-size:14.5px}
+
+/* flow */
+.flowcard{text-align:center}
+.flow-q{font-size:17px;font-weight:700;margin:6px 0 16px;min-height:48px;display:flex;align-items:center;justify-content:center}
+.flow-btns{display:flex;gap:10px}
+.flow-btns button{flex:1;padding:14px;border:0;border-radius:12px;font-size:16px;font-weight:700;color:#fff}
+.flow-btns .yes{background:var(--accent)}
+.flow-btns .no{background:#94a3b8}
+.result{padding:16px;border-radius:12px;text-align:center;font-weight:700}
+.result.r{background:#fceae6;color:var(--bad);border:2px solid var(--bad)}
+.result.y{background:#fdf4e3;color:#b07e1e;border:2px solid var(--warn)}
+.result.g{background:#e7f7f1;color:var(--ok);border:2px solid var(--ok)}
+.result .big{font-size:22px;display:block;margin-bottom:6px}
+.btn{display:inline-block;background:var(--accent);color:#fff;border:0;border-radius:10px;
+  padding:10px 16px;font-size:14px;font-weight:700;cursor:pointer}
+.btn.ghost{background:#fff;color:var(--accent);border:1.5px solid var(--accent)}
+.btn.sm{padding:7px 12px;font-size:13px}
+.btn.full{display:block;width:100%;text-align:center}
+
+/* notes list */
+.note{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:8px 0;background:#fbfdff}
+.note .meta{font-size:11px;color:var(--sub);display:flex;justify-content:space-between;margin-bottom:4px}
+.note .body{font-size:14px;white-space:pre-wrap}
+.tag{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+
+.callout{background:#fff8ec;border:1px solid #f3dca0;border-radius:12px;padding:10px 12px;font-size:13px;color:#8a6d2f}
+.redbox{background:#fceae6;border:1px solid #f1b6a8;border-radius:12px;padding:10px 12px;font-size:13px;color:var(--bad);font-weight:600}
+
+/* settings sheet */
+.sheet-bg{position:fixed;inset:0;background:rgba(31,45,61,.4);display:none;z-index:50;align-items:flex-end}
+.sheet-bg.on{display:flex}
+.sheet{background:#fff;width:100%;max-width:680px;margin:0 auto;border-radius:20px 20px 0 0;padding:18px;max-height:85vh;overflow:auto}
+.sheet h2{justify-content:space-between}
+
+@media(min-width:560px){.app{padding:18px}}
+
+/* ---------- print ---------- */
+.printonly{display:none}
+@media print{
+  body{background:#fff;padding:0}
+  .appbar,.tabbar,.page,.sheet-bg,.noprint{display:none !important}
+  .printonly{display:block}
+  .app{max-width:none;padding:0}
+  .psheet{padding:14mm 12mm;page-break-after:always}
+  .psheet:last-child{page-break-after:auto}
+  .ptitle{font-size:20px;border-bottom:3px solid #3b82c4;padding-bottom:6px;margin:0 0 10px;color:#1f2d3d}
+  .pfield{margin:7px 0;font-size:13px}
+  .pfield .pl{font-weight:700;color:#3b82c4;font-size:11px;display:block}
+  .pfield .pv{border-bottom:1px dotted #999;min-height:20px;display:block;padding:2px 0;white-space:pre-wrap}
+  .pgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px 18px}
+  table.pt{border-collapse:collapse;width:100%;font-size:11px;margin-top:6px}
+  table.pt th,table.pt td{border:1px solid #999;padding:5px 4px}
+  table.pt th{background:#e8f1fa}
+  .pnote{font-size:10px;color:#888;margin-top:10px}
+}
+</style>
+</head>
+<body>
+
+<!-- ===== app bar ===== -->
+<div class="appbar">
+  <div style="font-size:24px">🩺</div>
+  <div class="who">
+    <div class="nm" id="barName">健康パスポート</div>
+    <div class="sub" id="barSub">タップして記録</div>
+  </div>
+  <button onclick="openSheet()">⚙ おとな</button>
+</div>
+
+<div class="app">
+
+<!-- ============ 1: プロフィール ============ -->
+<section class="page on" id="p-profile">
+  <h2>📇 プロフィール</h2>
+  <p class="muted">変わりにくい情報。入力すると自動保存され、印刷の1ページ目に出ます。</p>
+  <div class="card">
+    <div class="row">
+      <label class="fld half"><span class="lb">なまえ</span><input type="text" data-k="name" placeholder="氏名"></label>
+      <label class="fld half"><span class="lb">生年月日</span><input type="date" data-k="birth"></label>
+    </div>
+    <label class="fld"><span class="lb">診断名</span><textarea data-k="dx" placeholder="例）自閉スペクトラム症、ADHD …"></textarea></label>
+    <label class="fld"><span class="lb">アレルギー（食物・薬・その他）</span><textarea data-k="allergy" placeholder="例）卵、抗生剤◯◯ で発疹 …"></textarea></label>
+    <label class="fld"><span class="lb">服薬（薬の名前・量・飲む時間）</span><textarea data-k="meds" placeholder="例）コンサータ18mg 朝食後 / メラトニン 就寝前 …"></textarea></label>
+    <label class="fld"><span class="lb">苦手なこと・配慮してほしいこと</span><textarea data-k="hard" placeholder="例）大きな音、待つこと、口の中を見られる、採血 …"></textarea></label>
+  </div>
+  <div class="card">
+    <h3>緊急連絡・かかりつけ</h3>
+    <div class="row">
+      <label class="fld half"><span class="lb">保護者・連絡先①</span><input type="text" data-k="emg1" placeholder="続柄 / 電話"></label>
+      <label class="fld half"><span class="lb">連絡先②</span><input type="text" data-k="emg2" placeholder="続柄 / 電話"></label>
+    </div>
+    <label class="fld"><span class="lb">かかりつけ医・病院</span><textarea data-k="clinic" placeholder="小児科 / 児童精神科 / 歯科 など"></textarea></label>
+  </div>
+</section>
+
+<!-- ============ 2: この子の普段 ============ -->
+<section class="page" id="p-base">
+  <h2>🌱 この子の普段</h2>
+  <div class="callout">ここが一番大事。「ふだんはこう」を書いておくと、医師が<b>「いつもと違う」</b>を判断できます。</div>
+  <div class="card">
+    <label class="fld"><span class="lb">😴 睡眠（寝る時間・起きる時間・寝つき・夜泣き）</span><textarea data-k="b_sleep" placeholder="例）21時就寝6時起き。寝つきに30分。物音で起きやすい"></textarea></label>
+    <label class="fld"><span class="lb">🍚 食事（好き嫌い・食べ方・水分）</span><textarea data-k="b_food" placeholder="例）白いご飯中心。野菜ほぼ食べない。少食。水分はこまめ"></textarea></label>
+    <label class="fld"><span class="lb">💩 排便（回数・かたさ・便秘傾向）</span><textarea data-k="b_bm" placeholder="例）1〜2日に1回。やや便秘がち。下剤◯◯使用"></textarea></label>
+    <label class="fld"><span class="lb">🗣 コミュニケーション（言葉・伝え方・痛みの出し方）</span><textarea data-k="b_comm" placeholder="例）二語文中心。痛い時は「いたい」と言えず機嫌が悪くなる/その場所を触る"></textarea></label>
+    <label class="fld"><span class="lb">⚡ 不調のサイン（具合が悪い時に最初に出る様子）</span><textarea data-k="b_sign" placeholder="例）よく寝るようになる/食べない/急に甘える/自傷が増える"></textarea></label>
+  </div>
+</section>
+
+<!-- ============ 3: きょうの記録 ============ -->
+<section class="page" id="p-today">
+  <h2>📅 きょうの記録</h2>
+  <p class="muted" id="todayLabel"></p>
+  <div class="card">
+    <div class="recgrp" data-rec="sleep">
+      <div class="q">😴 ねむり</div>
+      <div class="opts">
+        <div class="opt" data-v="good" data-c="g"><span class="em">😴</span>よく寝た</div>
+        <div class="opt" data-v="ok" data-c="y"><span class="em">🛌</span>ふつう</div>
+        <div class="opt" data-v="bad" data-c="r"><span class="em">😣</span>寝つけず</div>
+      </div>
+    </div>
+    <div class="recgrp" data-rec="food">
+      <div class="q">🍚 しょくよく</div>
+      <div class="opts">
+        <div class="opt" data-v="good" data-c="g"><span class="em">😋</span>よく食べた</div>
+        <div class="opt" data-v="ok" data-c="y"><span class="em">🙂</span>ふつう</div>
+        <div class="opt" data-v="bad" data-c="r"><span class="em">😞</span>食べない</div>
+      </div>
+    </div>
+    <div class="recgrp" data-rec="bm">
+      <div class="q">💩 うんち</div>
+      <div class="opts">
+        <div class="opt" data-v="none" data-c="y"><span class="em">⬜</span>なし</div>
+        <div class="opt" data-v="normal" data-c="g"><span class="em">💩</span>ふつう</div>
+        <div class="opt" data-v="soft" data-c="r"><span class="em">💧</span>ゆるい</div>
+        <div class="opt" data-v="hard" data-c="r"><span class="em">🪨</span>かたい</div>
+      </div>
+    </div>
+    <div class="recgrp" data-rec="mood">
+      <div class="q">😊 きげん</div>
+      <div class="opts">
+        <div class="opt" data-v="5" data-c="g"><span class="em">😄</span>とても良い</div>
+        <div class="opt" data-v="4" data-c="g"><span class="em">🙂</span>良い</div>
+        <div class="opt" data-v="3" data-c="y"><span class="em">😐</span>ふつう</div>
+        <div class="opt" data-v="2" data-c="r"><span class="em">😕</span>不安定</div>
+        <div class="opt" data-v="1" data-c="r"><span class="em">😣</span>悪い</div>
+      </div>
+    </div>
+    <div class="recgrp" data-rec="temp">
+      <div class="q">🌡 体温（任意）</div>
+      <div class="row" style="align-items:center">
+        <input type="text" inputmode="decimal" id="tempInput" placeholder="36.5" style="max-width:120px" onchange="setTemp(this.value)">
+        <span class="muted">℃</span>
+      </div>
+    </div>
+    <label class="fld"><span class="lb">📝 ひとことメモ（任意）</span><textarea id="todayMemo" placeholder="例）鼻水すこし。昼寝なし。" onchange="setMemo(this.value)"></textarea></label>
+    <div class="savednote" id="savedNote"></div>
+  </div>
+
+  <div class="card">
+    <h3>このごろの記録（新しい順）</h3>
+    <div class="histwrap">
+      <table class="histtable" id="histTable"></table>
+    </div>
+    <p class="muted" id="histEmpty" style="display:none">まだ記録がありません。上のボタンをタップしてみてください。</p>
+  </div>
+</section>
+
+<!-- ============ 4: きづき ============ -->
+<section class="page" id="p-check">
+  <h2>🔎 きづき・受診判断</h2>
+
+  <div class="card">
+    <h3>🚦 受診の目安フローチャート</h3>
+    <p class="muted">上から順に。当てはまる方を押してください。<b>判断の補助です。最終判断は保護者・医療者が。</b></p>
+    <div id="flowArea"></div>
+  </div>
+
+  <div class="card">
+    <h3>⚠️ いつもと違う？（行動変化チェック）</h3>
+    <p class="muted">不調の最初のサインは「行動の変化」に出やすいです。</p>
+    <div id="behaviorChk"></div>
+  </div>
+
+  <div class="card">
+    <h3>🤒 症状チェック</h3>
+    <div id="symptomChk"></div>
+    <button class="btn full sm noprint" style="margin-top:12px" onclick="saveCheckToMemo()">チェック結果を経過メモに保存</button>
+  </div>
+
+  <div class="card">
+    <h3>🗒 体調の経過メモ</h3>
+    <div class="row noprint">
+      <input type="text" id="progInput" placeholder="例）夜から38.2℃。水分は飲める" style="flex:1">
+      <button class="btn" onclick="addProg()">追加</button>
+    </div>
+    <div id="progList"></div>
+  </div>
+</section>
+
+<!-- ============ 5: つたえる ============ -->
+<section class="page" id="p-share">
+  <h2>📨 つたえる</h2>
+
+  <div class="card">
+    <h3>👨‍⚕️ 医師への伝達メモ</h3>
+    <p class="muted">受診前に整理。この画面ごと見せられます。</p>
+    <label class="fld"><span class="lb">今いちばん心配なこと</span><textarea data-k="dr_main" placeholder="一番伝えたいこと"></textarea></label>
+    <label class="fld"><span class="lb">いつから・どんな経過</span><textarea data-k="dr_course" placeholder="例）3日前から鼻水→昨夜から発熱"></textarea></label>
+    <label class="fld"><span class="lb">聞きたいこと</span><textarea data-k="dr_ask" placeholder="質問リスト"></textarea></label>
+  </div>
+
+  <div class="card">
+    <h3>🏫 学校・療育との連絡</h3>
+    <div class="row noprint">
+      <input type="text" id="schoolInput" placeholder="例）今日は頭痛で早退。明日は様子見て登校" style="flex:1">
+      <button class="btn" onclick="addSchool()">記録</button>
+    </div>
+    <div id="schoolList"></div>
+  </div>
+
+  <div class="card">
+    <h3>📷 写真・動画の記録</h3>
+    <p class="muted">写真・動画は端末のアルバムに保存し、ここには<b>「いつ・何を撮ったか」だけ</b>を控えます（個人情報を外に出さない運用）。</p>
+    <div class="row noprint">
+      <input type="date" id="mediaDate" style="max-width:160px">
+      <input type="text" id="mediaLabel" placeholder="例）発疹（背中）/ けいれんの様子" style="flex:1">
+    </div>
+    <button class="btn full sm noprint" style="margin-top:8px" onclick="addMedia()">記録を追加</button>
+    <div id="mediaList" style="margin-top:8px"></div>
+  </div>
+</section>
+
+</div><!-- /app -->
+
+<!-- ===== tabbar ===== -->
+<nav class="tabbar">
+  <button class="on" data-tab="p-profile"><span class="ic">📇</span>プロフィール</button>
+  <button data-tab="p-base"><span class="ic">🌱</span>ふだん</button>
+  <button data-tab="p-today"><span class="ic">📅</span>きょう</button>
+  <button data-tab="p-check"><span class="ic">🔎</span>きづき</button>
+  <button data-tab="p-share"><span class="ic">📨</span>つたえる</button>
+</nav>
+
+<!-- ===== settings sheet ===== -->
+<div class="sheet-bg" id="sheetBg" onclick="if(event.target===this)closeSheet()">
+  <div class="sheet">
+    <h2>⚙ おとなメニュー <button class="btn ghost sm" onclick="closeSheet()">閉じる</button></h2>
+    <button class="btn full" style="margin:8px 0" onclick="window.print()">🖨 印刷する（固定情報ページ）</button>
+    <p class="muted">プロフィール・この子の普段・受診の目安・医師への伝達メモを、母子手帳に挟める形で印刷します。</p>
+    <h3>バックアップ</h3>
+    <div class="row">
+      <button class="btn ghost" style="flex:1" onclick="exportData()">💾 書き出し(JSON)</button>
+      <button class="btn ghost" style="flex:1" onclick="document.getElementById('importFile').click()">📂 読み込み</button>
+    </div>
+    <input type="file" id="importFile" accept="application/json" style="display:none" onchange="importData(this.files[0])">
+    <p class="muted">機種変更や、家族・先生との共有に。すべて端末内に保存され、外部には送信されません。</p>
+    <h3>データ消去</h3>
+    <button class="btn ghost sm" style="color:var(--bad);border-color:var(--bad)" onclick="wipe()">すべての記録を消す</button>
+  </div>
+</div>
+
+<!-- ===== print layout ===== -->
+<div class="printonly" id="printRoot"></div>
+
+<script>
+"use strict";
+const KEY="kenko-passport-v1";
+const today=()=>new Date().toISOString().slice(0,10);
+const jdate=(s)=>{const d=new Date(s+"T00:00");return `${d.getMonth()+1}/${d.getDate()}(${"日月火水木金土"[d.getDay()]})`;};
+let DB=load();
+
+function load(){
+  try{return JSON.parse(localStorage.getItem(KEY))||{};}catch(e){return {};}
+}
+function save(){localStorage.setItem(KEY,JSON.stringify(DB));}
+DB.fields=DB.fields||{};
+DB.days=DB.days||{};        // {date:{sleep,food,bm,mood,temp,memo}}
+DB.prog=DB.prog||[];        // [{t,text}]
+DB.school=DB.school||[];    // [{t,text}]
+DB.media=DB.media||[];      // [{date,label}]
+
+/* ---------- text fields (auto-save) ---------- */
+function bindFields(){
+  document.querySelectorAll("[data-k]").forEach(el=>{
+    el.value=DB.fields[el.dataset.k]||"";
+    el.addEventListener("input",()=>{DB.fields[el.dataset.k]=el.value;save();if(el.dataset.k==="name")refreshBar();});
+  });
+}
+function refreshBar(){
+  const n=DB.fields.name;
+  document.getElementById("barName").textContent=n?n+"の健康パスポート":"健康パスポート";
+}
+
+/* ---------- tabs ---------- */
+document.querySelectorAll(".tabbar button").forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll(".tabbar button").forEach(x=>x.classList.remove("on"));
+    document.querySelectorAll(".page").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on");
+    document.getElementById(b.dataset.tab).classList.add("on");
+    window.scrollTo(0,0);
+  };
+});
+
+/* ---------- today one-tap ---------- */
+function curDay(){DB.days[today()]=DB.days[today()]||{};return DB.days[today()];}
+function paintToday(){
+  const d=curDay();
+  document.querySelectorAll(".recgrp[data-rec]").forEach(g=>{
+    const key=g.dataset.rec;
+    g.querySelectorAll(".opt").forEach(o=>{
+      o.classList.remove("sel","g","y","r");
+      if(d[key]!==undefined && String(d[key])===o.dataset.v){o.classList.add("sel",o.dataset.c);}
+    });
+  });
+  document.getElementById("tempInput").value=d.temp||"";
+  document.getElementById("todayMemo").value=d.memo||"";
+  document.getElementById("todayLabel").textContent=jdate(today())+" の記録（自動保存）";
+}
+document.querySelectorAll(".recgrp[data-rec] .opt").forEach(o=>{
+  o.onclick=()=>{
+    const g=o.closest(".recgrp");const key=g.dataset.rec;const d=curDay();
+    d[key]=(d[key]!==undefined&&String(d[key])===o.dataset.v)?undefined:o.dataset.v; // toggle off if same
+    if(d[key]===undefined)delete d[key];
+    save();paintToday();renderHist();flash();
+  };
+});
+function setTemp(v){const d=curDay();v=v.trim();if(v)d.temp=v;else delete d.temp;save();renderHist();flash();}
+function setMemo(v){const d=curDay();v=v.trim();if(v)d.memo=v;else delete d.memo;save();renderHist();flash();}
+let flashT;
+function flash(){const n=document.getElementById("savedNote");n.textContent="✓ 保存しました";clearTimeout(flashT);flashT=setTimeout(()=>n.textContent="",1500);}
+
+const EM={
+  sleep:{good:"😴",ok:"🛌",bad:"😣"},
+  food:{good:"😋",ok:"🙂",bad:"😞"},
+  bm:{none:"⬜",normal:"💩",soft:"💧",hard:"🪨"},
+  mood:{"5":"😄","4":"🙂","3":"😐","2":"😕","1":"😣"}
+};
+function renderHist(){
+  const dates=Object.keys(DB.days).filter(d=>Object.keys(DB.days[d]).length).sort().reverse().slice(0,14);
+  const t=document.getElementById("histTable");
+  document.getElementById("histEmpty").style.display=dates.length?"none":"block";
+  if(!dates.length){t.innerHTML="";return;}
+  let h="<tr><th>日</th><th>😴</th><th>🍚</th><th>💩</th><th>😊</th><th>🌡</th><th>メモ</th></tr>";
+  dates.forEach(dt=>{
+    const d=DB.days[dt];
+    h+=`<tr><td class="d">${jdate(dt)}</td>`+
+      `<td><span class="dot">${EM.sleep[d.sleep]||"·"}</span></td>`+
+      `<td><span class="dot">${EM.food[d.food]||"·"}</span></td>`+
+      `<td><span class="dot">${EM.bm[d.bm]||"·"}</span></td>`+
+      `<td><span class="dot">${EM.mood[d.mood]||"·"}</span></td>`+
+      `<td>${d.temp?d.temp:"·"}</td>`+
+      `<td style="text-align:left;font-size:11px">${d.memo?esc(d.memo):""}</td></tr>`;
+  });
+  t.innerHTML=h;
+}
+
+/* ---------- behavior & symptom checklists ---------- */
+const BEHAV=["食べる量が減った","水分をとらない","眠れない/眠りすぎる","元気がない・ぐったり","機嫌が悪い・泣く時間が増えた",
+  "自傷・かんしゃくが増えた","言葉/反応が減った","体のどこかを触る・気にする","落ち着きがない・いつもより動く","顔色が悪い"];
+const SYMP=["発熱(37.5℃以上)","せき・鼻水","のどの痛み","嘔吐","下痢","腹痛","発疹・湿疹","息が苦しそう","耳・頭を痛がる","おしっこの異常"];
+function renderChk(id,arr,store){
+  DB[store]=DB[store]||{};
+  const box=document.getElementById(id);
+  box.innerHTML=arr.map((t,i)=>{
+    const c=DB[store][i]?"checked":"";
+    return `<label class="chk"><input type="checkbox" ${c} onchange="DB.${store}[${i}]=this.checked;save()"><span>${t}</span></label>`;
+  }).join("");
+}
+
+/* ---------- triage flowchart ---------- */
+const FLOW=[
+  {q:"けいれん・意識がもうろう・呼吸が苦しそう・唇が青い・ぐったりして反応が弱い、のどれか？",
+   yes:{type:"r",title:"すぐ救急（#8000 / 119 を検討）",msg:"様子を見ずに受診・通報を。"}, no:1},
+  {q:"水分がとれない／半日以上おしっこが出ない／嘔吐や下痢を繰り返す？",
+   yes:{type:"r",title:"今日すぐ受診",msg:"脱水のおそれ。早めに小児科へ。"}, no:2},
+  {q:"38.5℃以上の発熱、または高くなくても いつもと様子が大きく違う（ぐったり・全然食べない・反応が薄い）？",
+   yes:{type:"y",title:"今日〜明日に受診",msg:"診療時間内に受診を。夜間で不安なら #8000 へ相談。"}, no:3},
+  {q:"発熱・せき・痛みなどの症状はあるが、機嫌・水分・睡眠は普段に近い？",
+   yes:{type:"g",title:"おうちで様子見でOK",msg:"水分と休養を。悪化・新しい症状が出たら受診。記録を続けましょう。"},
+   no:{type:"y",title:"念のため受診を検討",msg:"判断に迷うときは #8000(小児救急電話) に相談を。"}}
+];
+let flowStep=0;
+function renderFlow(){
+  const a=document.getElementById("flowArea");const node=FLOW[flowStep];
+  a.innerHTML=`<div class="flowcard">
+    <div class="redbox" style="margin-bottom:10px">迷ったら #8000（小児救急でんわ相談）。緊急時は 119。</div>
+    <div class="flow-q">Q${flowStep+1}. ${node.q}</div>
+    <div class="flow-btns">
+      <button class="yes" onclick="flowGo('yes')">はい</button>
+      <button class="no" onclick="flowGo('no')">いいえ</button>
+    </div>
+    <p class="muted" style="margin-top:10px">${flowStep>0?'<a href="#" onclick="flowReset();return false">↺ 最初から</a>':''}</p>
+  </div>`;
+}
+function flowGo(ans){
+  const node=FLOW[flowStep];const r=node[ans];
+  if(typeof r==="number"){flowStep=r;renderFlow();return;}
+  const a=document.getElementById("flowArea");
+  a.innerHTML=`<div class="result ${r.type}"><span class="big">${r.title}</span>${r.msg}</div>
+    <button class="btn ghost full sm" style="margin-top:12px" onclick="flowReset()">↺ もう一度</button>`;
+}
+function flowReset(){flowStep=0;renderFlow();}
+
+/* ---------- progress / school / media ---------- */
+const now=()=>{const d=new Date();return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;};
+function addProg(){const i=document.getElementById("progInput");if(!i.value.trim())return;DB.prog.unshift({t:now(),text:i.value.trim()});i.value="";save();renderList("prog","progList");}
+function addSchool(){const i=document.getElementById("schoolInput");if(!i.value.trim())return;DB.school.unshift({t:now(),text:i.value.trim()});i.value="";save();renderList("school","schoolList");}
+function renderList(store,id){
+  const box=document.getElementById(id);
+  box.innerHTML=DB[store].map((n,idx)=>`<div class="note"><div class="meta"><span>${n.t}</span><a href="#" class="noprint" onclick="delNote('${store}',${idx});return false" style="color:#bbb">削除</a></div><div class="body">${esc(n.text)}</div></div>`).join("");
+}
+function delNote(store,idx){DB[store].splice(idx,1);save();renderList(store,store==="prog"?"progList":"schoolList");}
+function addMedia(){
+  const dt=document.getElementById("mediaDate").value||today();
+  const lb=document.getElementById("mediaLabel").value.trim();
+  if(!lb)return;
+  DB.media.unshift({date:dt,label:lb});document.getElementById("mediaLabel").value="";save();renderMedia();
+}
+function renderMedia(){
+  const box=document.getElementById("mediaList");
+  box.innerHTML=DB.media.map((m,idx)=>`<div class="note"><div class="meta"><span class="tag">📷 ${jdate(m.date)}</span><a href="#" class="noprint" onclick="DB.media.splice(${idx},1);save();renderMedia();return false" style="color:#bbb">削除</a></div><div class="body">${esc(m.label)}</div></div>`).join("");
+}
+function saveCheckToMemo(){
+  const b=(DB.behav?Object.keys(DB.behav).filter(i=>DB.behav[i]).map(i=>BEHAV[i]):[]);
+  const s=(DB.symp?Object.keys(DB.symp).filter(i=>DB.symp[i]).map(i=>SYMP[i]):[]);
+  if(!b.length&&!s.length){alert("チェックがありません");return;}
+  let txt="";if(s.length)txt+="【症状】"+s.join("、");if(b.length)txt+=(txt?" / ":"")+"【行動変化】"+b.join("、");
+  DB.prog.unshift({t:now(),text:txt});save();renderList("prog","progList");
+  document.querySelector('[data-tab="p-check"]').click();
+  alert("経過メモに保存しました");
+}
+
+/* ---------- backup ---------- */
+function exportData(){
+  const blob=new Blob([JSON.stringify(DB,null,2)],{type:"application/json"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);
+  a.download=`健康パスポート_${(DB.fields.name||"記録")}_${today()}.json`;a.click();
+}
+function importData(file){
+  if(!file)return;const r=new FileReader();
+  r.onload=()=>{try{DB=JSON.parse(r.result);save();location.reload();}catch(e){alert("読み込めませんでした");}};
+  r.readAsText(file);
+}
+function wipe(){if(confirm("すべての記録を消します。よろしいですか？")){localStorage.removeItem(KEY);location.reload();}}
+
+/* ---------- sheet ---------- */
+function openSheet(){buildPrint();document.getElementById("sheetBg").classList.add("on");}
+function closeSheet(){document.getElementById("sheetBg").classList.remove("on");}
+
+/* ---------- print build ---------- */
+function pf(label,val){return `<div class="pfield"><span class="pl">${label}</span><span class="pv">${esc(val||"")}</span></div>`;}
+function buildPrint(){
+  const f=DB.fields;
+  const recent=Object.keys(DB.days).filter(d=>Object.keys(DB.days[d]).length).sort().reverse().slice(0,14);
+  let histRows=recent.map(dt=>{const d=DB.days[dt];
+    return `<tr><td>${jdate(dt)}</td><td>${EM.sleep[d.sleep]||""}</td><td>${EM.food[d.food]||""}</td><td>${EM.bm[d.bm]||""}</td><td>${EM.mood[d.mood]||""}</td><td>${d.temp||""}</td><td style="text-align:left">${esc(d.memo||"")}</td></tr>`;}).join("");
+  if(!histRows)histRows=`<tr><td colspan="7" style="color:#999">記録なし</td></tr>`;
+  document.getElementById("printRoot").innerHTML=`
+  <div class="psheet">
+    <div class="ptitle">健康パスポート — プロフィール</div>
+    <div class="pgrid">${pf("なまえ",f.name)}${pf("生年月日",f.birth)}</div>
+    ${pf("診断名",f.dx)}${pf("アレルギー",f.allergy)}${pf("服薬",f.meds)}${pf("苦手なこと・配慮",f.hard)}
+    <div class="pgrid">${pf("緊急連絡①",f.emg1)}${pf("緊急連絡②",f.emg2)}</div>
+    ${pf("かかりつけ医・病院",f.clinic)}
+    <div class="pnote">※ この用紙は母子手帳とは別の健康記録です。受診時にご提示ください。</div>
+  </div>
+  <div class="psheet">
+    <div class="ptitle">この子の「普段」</div>
+    ${pf("😴 睡眠",f.b_sleep)}${pf("🍚 食事",f.b_food)}${pf("💩 排便",f.b_bm)}
+    ${pf("🗣 コミュニケーション・痛みの出し方",f.b_comm)}${pf("⚡ 不調のサイン",f.b_sign)}
+    <div class="pnote">「いつもと違う」を判断するための基準情報です。</div>
+  </div>
+  <div class="psheet">
+    <div class="ptitle">医師への伝達メモ</div>
+    ${pf("今いちばん心配なこと",f.dr_main)}${pf("いつから・どんな経過",f.dr_course)}${pf("聞きたいこと",f.dr_ask)}
+    <div class="ptitle" style="margin-top:18px;font-size:15px">最近の健康記録（直近14日）</div>
+    <table class="pt"><tr><th>日</th><th>睡眠</th><th>食欲</th><th>便</th><th>機嫌</th><th>体温</th><th>メモ</th></tr>${histRows}</table>
+    <div class="pnote">😴良/🛌普/😣不良 ・ 😋良/🙂普/😞不良 ・ 😄〜😣 機嫌5段階</div>
+    <div class="pnote">受診の目安：けいれん/意識/呼吸困難/ぐったり→119・#8000。水分とれない/嘔吐下痢反復→当日受診。迷ったら #8000。</div>
+  </div>`;
+}
+
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));}
+
+/* ---------- init ---------- */
+document.getElementById("mediaDate").value=today();
+bindFields();refreshBar();paintToday();renderHist();renderFlow();
+renderChk("behaviorChk",BEHAV,"behav");renderChk("symptomChk",SYMP,"symp");
+renderList("prog","progList");renderList("school","schoolList");renderMedia();
+</script>
+</body>
+</html>
