@@ -129,6 +129,30 @@ textarea{min-height:72px;resize:vertical}
 
 @media(min-width:560px){.app{padding:18px}}
 
+/* media */
+.modebtns{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px}
+.modebtns button{border:1.5px solid var(--accent);background:#fff;color:var(--accent);border-radius:12px;
+  padding:11px 4px;font-size:12.5px;font-weight:700;display:flex;flex-direction:column;align-items:center;gap:3px}
+.modebtns button .mi{font-size:21px}
+.modebtns button.primary{background:var(--accent);color:#fff}
+.mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px;margin-top:12px}
+.mtile{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fbfdff;position:relative;cursor:pointer}
+.mtile .thumb{width:100%;aspect-ratio:1;object-fit:cover;display:block;background:#eef3f8}
+.mtile .ph{width:100%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:30px;background:#eef3f8;color:#9bb0c4}
+.mtile .cap{padding:5px 7px;font-size:10.5px;line-height:1.35}
+.mtile .cap .dt{color:var(--accent);font-weight:700}
+.mtile .play{position:absolute;top:6px;left:6px;background:rgba(0,0,0,.6);color:#fff;font-size:10px;padding:1px 7px;border-radius:20px;font-weight:700}
+.mtile .del{position:absolute;top:4px;right:4px;background:rgba(0,0,0,.5);color:#fff;border:0;width:22px;height:22px;border-radius:50%;font-size:14px;line-height:1;cursor:pointer}
+
+/* viewer */
+.viewer{position:fixed;inset:0;background:rgba(0,0,0,.93);z-index:60;display:none;flex-direction:column}
+.viewer.on{display:flex}
+.viewer .vtop{display:flex;gap:8px;padding:12px}
+.viewer .vlabel{color:#fff;font-size:13px;align-self:center;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.viewer .vbody{flex:1;display:flex;align-items:center;justify-content:center;overflow:auto;padding:0 8px 12px}
+.viewer img,.viewer video{max-width:100%;max-height:100%;border-radius:8px}
+.viewer .vbtn{background:rgba(255,255,255,.2);color:#fff;border:0;border-radius:10px;padding:8px 13px;font-weight:700;font-size:13px;text-decoration:none;display:inline-block}
+
 /* ---------- print ---------- */
 .printonly{display:none}
 @media print{
@@ -316,13 +340,19 @@ textarea{min-height:72px;resize:vertical}
 
   <div class="card">
     <h3>📷 写真・動画の記録</h3>
-    <p class="muted">写真・動画は端末のアルバムに保存し、ここには<b>「いつ・何を撮ったか」だけ</b>を控えます（個人情報を外に出さない運用）。</p>
+    <p class="muted">日付とラベルを入れて、保存方法を選びます。<b>「写真を保存」「動画を保存」</b>を選ぶと、この子の記録としてアプリ内に保存され、サムネイルをタップして見られます（端末内だけ・外部送信なし）。</p>
     <div class="row noprint">
       <input type="date" id="mediaDate" style="max-width:160px">
       <input type="text" id="mediaLabel" placeholder="例）発疹（背中）/ けいれんの様子" style="flex:1">
     </div>
-    <button class="btn full sm noprint" style="margin-top:8px" onclick="addMedia()">記録を追加</button>
-    <div id="mediaList" style="margin-top:8px"></div>
+    <div class="modebtns noprint">
+      <button onclick="addLabelOnly()"><span class="mi">📝</span>ラベルだけ</button>
+      <button class="primary" onclick="document.getElementById('imgInput').click()"><span class="mi">📷</span>写真を保存</button>
+      <button class="primary" onclick="document.getElementById('vidInput').click()"><span class="mi">🎥</span>動画を保存</button>
+    </div>
+    <input type="file" id="imgInput" accept="image/*" style="display:none" onchange="addFile(this.files[0],'image');this.value=''">
+    <input type="file" id="vidInput" accept="video/*" style="display:none" onchange="addFile(this.files[0],'video');this.value=''">
+    <div id="mediaList"></div>
   </div>
 </section>
 
@@ -343,16 +373,29 @@ textarea{min-height:72px;resize:vertical}
     <h2>⚙ おとなメニュー <button class="btn ghost sm" onclick="closeSheet()">閉じる</button></h2>
     <button class="btn full" style="margin:8px 0" onclick="window.print()">🖨 印刷する（固定情報ページ）</button>
     <p class="muted">プロフィール・この子の普段・受診の目安・医師への伝達メモを、母子手帳に挟める形で印刷します。</p>
-    <h3>バックアップ</h3>
+    <h3>バックアップ（書き出し）</h3>
     <div class="row">
-      <button class="btn ghost" style="flex:1" onclick="exportData()">💾 書き出し(JSON)</button>
-      <button class="btn ghost" style="flex:1" onclick="document.getElementById('importFile').click()">📂 読み込み</button>
+      <button class="btn ghost" style="flex:1" onclick="exportLight()">💾 記録のみ<br><small>軽量</small></button>
+      <button class="btn ghost" style="flex:1" onclick="exportFull()">🖼 写真・動画ごと<br><small>大容量</small></button>
     </div>
+    <p class="muted">普段は「記録のみ」でOK。機種変更で写真・動画も移したいときは「写真・動画ごと」を。すべて端末内処理で、外部には送信されません。</p>
+    <h3>読み込み</h3>
+    <button class="btn ghost full" onclick="document.getElementById('importFile').click()">📂 JSONを読み込む</button>
     <input type="file" id="importFile" accept="application/json" style="display:none" onchange="importData(this.files[0])">
-    <p class="muted">機種変更や、家族・先生との共有に。すべて端末内に保存され、外部には送信されません。</p>
+    <p class="muted">書き出したJSONから復元します。「写真・動画ごと」のJSONなら現物も復元されます。</p>
     <h3>データ消去</h3>
     <button class="btn ghost sm" style="color:var(--bad);border-color:var(--bad)" onclick="wipe()">すべての記録を消す</button>
   </div>
+</div>
+
+<!-- ===== media viewer ===== -->
+<div class="viewer" id="viewer">
+  <div class="vtop">
+    <span class="vlabel" id="viewerLabel"></span>
+    <a class="vbtn" id="viewerDownload" download>⬇ 端末に保存</a>
+    <button class="vbtn" onclick="closeViewer()">閉じる</button>
+  </div>
+  <div class="vbody" id="viewerBody"></div>
 </div>
 
 <!-- ===== print layout ===== -->
@@ -507,15 +550,92 @@ function renderList(store,id){
   box.innerHTML=DB[store].map((n,idx)=>`<div class="note"><div class="meta"><span>${n.t}</span><a href="#" class="noprint" onclick="delNote('${store}',${idx});return false" style="color:#bbb">削除</a></div><div class="body">${esc(n.text)}</div></div>`).join("");
 }
 function delNote(store,idx){DB[store].splice(idx,1);save();renderList(store,store==="prog"?"progList":"schoolList");}
-function addMedia(){
+/* --- IndexedDB for photo/video blobs --- */
+let _idb;
+function idb(){return new Promise((res,rej)=>{
+  if(_idb)return res(_idb);
+  const r=indexedDB.open("kenko-media",1);
+  r.onupgradeneeded=()=>r.result.createObjectStore("blobs");
+  r.onsuccess=()=>{_idb=r.result;res(_idb);};
+  r.onerror=()=>rej(r.error);
+});}
+async function putBlob(id,blob){const db=await idb();return new Promise((res,rej)=>{const t=db.transaction("blobs","readwrite");t.objectStore("blobs").put(blob,id);t.oncomplete=res;t.onerror=()=>rej(t.error);});}
+async function getBlob(id){const db=await idb();return new Promise((res,rej)=>{const t=db.transaction("blobs","readonly");const q=t.objectStore("blobs").get(id);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error);});}
+async function delBlob(id){const db=await idb();return new Promise((res)=>{const t=db.transaction("blobs","readwrite");t.objectStore("blobs").delete(id);t.oncomplete=res;});}
+async function allBlobs(){const db=await idb();return new Promise((res)=>{const t=db.transaction("blobs","readonly");const c=t.objectStore("blobs").openCursor();const out={};c.onsuccess=e=>{const cur=e.target.result;if(cur){out[cur.key]=cur.value;cur.continue();}else res(out);};});}
+
+const mediaURLs={};
+function newId(){return "m"+Date.now()+Math.random().toString(36).slice(2,7);}
+function shrinkImage(file,maxEdge=1280,q=0.82){return new Promise((res)=>{
+  const url=URL.createObjectURL(file);const img=new Image();
+  img.onload=()=>{let w=img.width,h=img.height;const s=Math.min(1,maxEdge/Math.max(w,h));
+    w=Math.round(w*s);h=Math.round(h*s);
+    const c=document.createElement("canvas");c.width=w;c.height=h;
+    c.getContext("2d").drawImage(img,0,0,w,h);URL.revokeObjectURL(url);
+    c.toBlob(b=>res(b||file),"image/jpeg",q);};
+  img.onerror=()=>{URL.revokeObjectURL(url);res(file);};img.src=url;
+});}
+
+function addLabelOnly(){
   const dt=document.getElementById("mediaDate").value||today();
   const lb=document.getElementById("mediaLabel").value.trim();
-  if(!lb)return;
-  DB.media.unshift({date:dt,label:lb});document.getElementById("mediaLabel").value="";save();renderMedia();
+  if(!lb){alert("ラベルを入力してください");return;}
+  DB.media.unshift({id:newId(),date:dt,label:lb,mode:"label"});
+  document.getElementById("mediaLabel").value="";save();renderMedia();
+}
+async function addFile(file,kind){
+  if(!file)return;
+  const dt=document.getElementById("mediaDate").value||today();
+  const lb=document.getElementById("mediaLabel").value.trim();
+  const id=newId();let blob=file;
+  if(kind==="image"){blob=await shrinkImage(file);}
+  else if(kind==="video"){
+    const mb=file.size/1048576;
+    if(mb>60 && !confirm("この動画は約"+Math.round(mb)+"MBあります。端末の容量を使います。保存しますか？"))return;
+  }
+  try{await putBlob(id,blob);}catch(e){alert("保存できませんでした（端末の空き容量が足りない可能性）。");return;}
+  mediaURLs[id]=URL.createObjectURL(blob);
+  DB.media.unshift({id,date:dt,label:lb,mode:"media",kind});
+  document.getElementById("mediaLabel").value="";save();renderMedia();
 }
 function renderMedia(){
   const box=document.getElementById("mediaList");
-  box.innerHTML=DB.media.map((m,idx)=>`<div class="note"><div class="meta"><span class="tag">📷 ${jdate(m.date)}</span><a href="#" class="noprint" onclick="DB.media.splice(${idx},1);save();renderMedia();return false" style="color:#bbb">削除</a></div><div class="body">${esc(m.label)}</div></div>`).join("");
+  if(!DB.media.length){box.innerHTML='<p class="muted" style="margin-top:10px">まだ記録がありません。</p>';return;}
+  box.innerHTML='<div class="mgrid">'+DB.media.map((m,idx)=>{
+    let thumb,playtag="";
+    if(m.mode==="media"&&mediaURLs[m.id]){
+      if(m.kind==="video"){thumb='<div class="ph">🎥</div>';playtag='<span class="play">▶ 動画</span>';}
+      else{thumb='<img class="thumb" src="'+mediaURLs[m.id]+'">';}
+    }else if(m.mode==="media"){thumb='<div class="ph">🖼️</div>';playtag='<span class="play">未復元</span>';}
+    else{thumb='<div class="ph">📝</div>';}
+    return '<div class="mtile" onclick="openViewer('+idx+')">'+thumb+playtag+
+      '<button class="del noprint" onclick="event.stopPropagation();delMedia('+idx+')">×</button>'+
+      '<div class="cap"><span class="dt">'+jdate(m.date)+'</span><br>'+esc(m.label||"")+'</div></div>';
+  }).join("")+'</div>';
+}
+function openViewer(idx){
+  const m=DB.media[idx];if(m.mode!=="media")return;
+  const url=mediaURLs[m.id];
+  if(!url){alert("この写真・動画はこの端末にはありません（『記録のみ』のバックアップから復元された記録です）。");return;}
+  document.getElementById("viewerBody").innerHTML = m.kind==="video"
+    ? '<video src="'+url+'" controls autoplay playsinline></video>'
+    : '<img src="'+url+'">';
+  document.getElementById("viewerLabel").textContent=jdate(m.date)+"  "+(m.label||"");
+  const dl=document.getElementById("viewerDownload");
+  dl.href=url;dl.download=(m.label||"media")+"_"+m.date+(m.kind==="video"?".mp4":".jpg");
+  document.getElementById("viewer").classList.add("on");
+}
+function closeViewer(){document.getElementById("viewer").classList.remove("on");document.getElementById("viewerBody").innerHTML="";}
+async function delMedia(idx){
+  const m=DB.media[idx];if(!confirm("この記録を削除しますか？"))return;
+  if(m.mode==="media"){await delBlob(m.id);if(mediaURLs[m.id]){URL.revokeObjectURL(mediaURLs[m.id]);delete mediaURLs[m.id];}}
+  DB.media.splice(idx,1);save();renderMedia();
+}
+async function initMedia(){
+  for(const m of DB.media){
+    if(m.mode==="media"&&m.id){try{const b=await getBlob(m.id);if(b)mediaURLs[m.id]=URL.createObjectURL(b);}catch(e){}}
+  }
+  renderMedia();
 }
 function saveCheckToMemo(){
   const b=(DB.behav?Object.keys(DB.behav).filter(i=>DB.behav[i]).map(i=>BEHAV[i]):[]);
@@ -528,17 +648,33 @@ function saveCheckToMemo(){
 }
 
 /* ---------- backup ---------- */
-function exportData(){
-  const blob=new Blob([JSON.stringify(DB,null,2)],{type:"application/json"});
+function download(data,suffix){
+  const blob=new Blob([JSON.stringify(data)],{type:"application/json"});
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);
-  a.download=`健康パスポート_${(DB.fields.name||"記録")}_${today()}.json`;a.click();
+  a.download=`健康パスポート_${(DB.fields.name||"記録")}_${suffix}_${today()}.json`;a.click();
 }
-function importData(file){
-  if(!file)return;const r=new FileReader();
-  r.onload=()=>{try{DB=JSON.parse(r.result);save();location.reload();}catch(e){alert("読み込めませんでした");}};
-  r.readAsText(file);
+function exportLight(){download(JSON.parse(JSON.stringify(DB)),"記録のみ");}
+async function exportFull(){
+  const blobs=await allBlobs();const enc={};
+  for(const id in blobs){enc[id]=await blobToDataURL(blobs[id]);}
+  const data=JSON.parse(JSON.stringify(DB));data.__blobs=enc;
+  download(data,"写真動画つき");
 }
-function wipe(){if(confirm("すべての記録を消します。よろしいですか？")){localStorage.removeItem(KEY);location.reload();}}
+function blobToDataURL(blob){return new Promise(res=>{const r=new FileReader();r.onload=()=>res(r.result);r.readAsDataURL(blob);});}
+function dataURLtoBlob(durl){const[meta,b64]=durl.split(",");const mime=(meta.match(/:(.*?);/)||[])[1]||"application/octet-stream";
+  const bin=atob(b64);const u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return new Blob([u],{type:mime});}
+async function importData(file){
+  if(!file)return;let data;
+  try{data=JSON.parse(await file.text());}catch(e){alert("読み込めませんでした");return;}
+  const blobs=data.__blobs;delete data.__blobs;
+  DB=data;DB.fields=DB.fields||{};DB.days=DB.days||{};DB.prog=DB.prog||[];DB.school=DB.school||[];DB.media=DB.media||[];
+  save();
+  if(blobs){for(const id in blobs){try{await putBlob(id,dataURLtoBlob(blobs[id]));}catch(e){}}}
+  location.reload();
+}
+function wipe(){if(confirm("すべての記録（写真・動画も含む）を消します。よろしいですか？")){
+  localStorage.removeItem(KEY);try{indexedDB.deleteDatabase("kenko-media");}catch(e){}
+  setTimeout(()=>location.reload(),200);}}
 
 /* ---------- sheet ---------- */
 function openSheet(){buildPrint();document.getElementById("sheetBg").classList.add("on");}
@@ -583,7 +719,7 @@ function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;","
 document.getElementById("mediaDate").value=today();
 bindFields();refreshBar();paintToday();renderHist();renderFlow();
 renderChk("behaviorChk",BEHAV,"behav");renderChk("symptomChk",SYMP,"symp");
-renderList("prog","progList");renderList("school","schoolList");renderMedia();
+renderList("prog","progList");renderList("school","schoolList");initMedia();
 </script>
 </body>
 </html>
